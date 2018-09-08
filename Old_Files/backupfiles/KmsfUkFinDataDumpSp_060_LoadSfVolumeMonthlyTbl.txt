@@ -1,0 +1,130 @@
+USE [KmsfOBExtracts]
+GO
+/****** Object:  StoredProcedure [kmsf].[KmsfUkFinDataDumpSp_060_LoadSfVolumeMonthlyTbl]    Script Date: 7/27/2017 8:32:48 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+
+
+
+
+
+ALTER PROCEDURE [kmsf].[KmsfUkFinDataDumpSp_060_LoadSfVolumeMonthlyTbl]
+  (
+     @LogEntryId BIGINT = NULL
+    ,@VMFsclStartDate DATE = NULL
+    ,@VMFsclStopDate DATE = NULL
+    ,@RsltCd TINYINT OUTPUT
+    ,@RsltTxt VARCHAR(254) OUTPUT
+  )
+
+AS
+
+BEGIN
+
+INSERT INTO kmsf.KmsfUkFinDataDumpProcLogDtl (LogEntryId,StartDtime,ProcName,ValueVariable)
+VALUES (@LogEntryId,SYSDATETIME(),'KmsfUkFinDataDumpSp_060_LoadSfVolumeMonthlyTbl','')
+
+SET NOCOUNT ON
+
+IF OBJECT_ID('Staging.UKFinSfVolumeMonthly','U') IS NOT NULL
+	DROP TABLE Staging.UKFinSfVolumeMonthly
+SELECT EncMRN = efv.EncMRN
+  ,EcdNo = efv.EcdNo
+  ,EncTypeMne = efv.EncTypeMne
+
+  ,EncLocId = efv.EncLocId
+  ,EncProvHPOObjId = efv.EncProvHPOObjId
+  ,EncProvHPOTypeMne = efv.EncProvHPOTypeMne
+  ,EncProvName = EncProv.ShortName
+  ,ApmSchedLocCd = EncUsrData.textval
+
+  ,ChgObjId = cfv.ChgObjId
+  ,GlEntObjId = cfv.GlEntObjId
+
+  ,StrDate = CAST(cfv.StrDate AS DATE)
+
+  ,FsclYr = apd.FsclYr
+  ,FsclPer = apd.FsclPer
+  ,FsclYrPer = apd.FsclYrPer
+
+  ,SupvHlthProfObjId = cfv.SupvHlthProfObjId
+  ,SupvHlthProfNpi = SupHlthProf.HlthProfNPI
+  ,SupvHlthProfName = SupHlthProf.RptName
+
+  ,SvcProvHPOObjId = cfv.SvcProvHPOObjId
+  ,SvcProvShortName = SvcProv.ShortName
+  ,DivHpoObjId = Div.HpoObjId
+  ,DivShortName = Div.ShortName
+  ,BusUnitHpoObjId = BusUnit.HpoObjId
+  ,BusUnitShortName = BusUnit.ShortName
+
+  ,ChgProcCdVal = cfv.ChgProcCdVal
+  ,ChgProcCdDesc = cpt.Mne
+  ,ChgModfVal = cfv.ChgModfVal
+  ,SvcObjId = cfv.SvcObjId
+  ,SvcBlName = smv.BlName
+
+  ,work_rvu = chg.work_rvu
+  ,TtlAdjWorkRvu = chg.tot_adj_work_rvu
+  ,Qty = cfv.Qty
+  ,ExtPriceAmt = cfv.ExtPriceAmt
+
+  ,PrimPyrObjId = PrimPyr.PyrObjId
+  ,PrimPyrMne = PrimPyr.Mne
+  ,PrimPyrShortName = PrimPyr.ShortName
+
+  ,CurrPyrObjId = CurrPyr.PyrObjId
+  ,CurrPyrMne = CurrPyr.Mne
+  ,CurrPyrShortName = CurrPyr.ShortName
+
+  ,RvsePostDate = cfv.RvsePostDate
+  ,TransTypeMne = cfv.TransTypeMne
+
+  ,CostCenter = gl.cost_center
+  ,FundId = gl.fund_id
+  ,SAPGL = gl.sap_gl
+  ,SvcSysGenId = smv.SvcSysGenId
+
+INTO Staging.UKFinSfVolumeMonthly	
+FROM KMSFDSSDBP01.smsphdssf240.smsdss.ChgFctV cfv
+  JOIN KMSFDSSDBP01.smsphdssf240.customer.kmsfsfchgdtlv cdv on cdv.Glentobjid = cfv.Glentobjid
+  JOIN KMSFDSSDBP01.smsphdssf240.smsdss.kmsf_sf_chg chg ON chg.GlEntObjId = cfv.GlEntObjId
+  JOIN KMSFDSSDBP01.smsphdssf240.smsdss.kmsf_sf_acct_pd_date apd ON CAST(cfv.RptPostBusDate AS DATE) = CAST(apd.FullDate AS DATE)
+  LEFT JOIN KMSFDSSDBP01.smsphdssf240.smsdss.EncFctV efv ON efv.EncObjId = cfv.EncObjId
+  LEFT JOIN KMSFDSSDBP01.smsphdssf240.smsdss.hpomstrv EncProv ON EncProv.HPOObjId = efv.EncProvHPOObjId
+  LEFT JOIN KMSFDSSDBP01.smsphdssf240.dbo.UDTEncUserData EncUsrData ON efv.EncObjId = EncUsrData.EncObjId and EncUsrData.MetaDataObjId = 1
+  LEFT JOIN KMSFDSSDBP01.smsphdssf240.smsdss.HlthProfMstrV SupHlthProf ON SupHlthProf.HlthProfObjId = cfv.SupvHlthProfObjId
+  LEFT JOIN KMSFDSSDBP01.smsphdssf240.smsdss.clasfmstrv cpt ON cpt.CdVal = cfv.ChgProcCdVal AND cpt.ClasfTypeMne = 'Proc'
+  LEFT JOIN KMSFDSSDBP01.smsphdssf240.smsdss.SvcMstrV smv ON smv.SvcObjId = cfv.SvcObjId 
+  LEFT JOIN KMSFDSSDBP01.smsphdssf240.smsdss.BlPerFctV AS bpfv ON cfv.BlPerObjId = bpfv.BlPerObjId
+  LEFT JOIN KMSFDSSDBP01.smsphdssf240.smsdss.PyrHlthPlanMstrV AS PrimHlthPlan ON bpfv.PrimPyrHlthPlanObjId = PrimHlthPlan.PyrHlthPlanObjId
+  LEFT JOIN KMSFDSSDBP01.smsphdssf240.smsdss.PyrMstrv PrimPyr ON PrimPyr.PyrobjId = PrimHlthPlan.PyrobjId
+  LEFT JOIN KMSFDSSDBP01.smsphdssf240.smsdss.PyrHlthPlanMstrV AS CurrHlthPlan ON bpfv.CurrHlthPlanObjId = CurrHlthPlan.PyrHlthPlanObjId
+  LEFT JOIN KMSFDSSDBP01.smsphdssf240.smsdss.PyrMstrv CurrPyr ON CurrPyr.PyrobjId = CurrHlthPlan.PyrobjId
+  LEFT JOIN KMSFDSSDBP01.smsphdssf240.smsdss.hpomstrv SvcProv ON SvcProv.HPOObjId = cfv.SvcProvHPOObjID
+  LEFT JOIN KMSFDSSDBP01.smsphdssf240.smsdss.hpomstrv Div ON Div.HPOObjId = SvcProv.ParentHPOObjId
+  LEFT JOIN KMSFDSSDBP01.smsphdssf240.smsdss.hpomstrv BusUnit ON BusUnit.HpoObjId = Div.ParentHPOObjId
+  LEFT JOIN KMSFDSSDBP01.smsphdssf240.smsdss.kmsf_sap_gl_assn gl ON gl.chg_type = 1 AND gl.GLEntObjId = cfv.GLEntObjId AND gl.current_record = 1
+WHERE cdv.RptPostBusDate BETWEEN @VMFsclStartDate AND @VMFsclStopDate
+
+UPDATE kmsf.KmsfUkFinDataDumpProcLogDtl SET EndDtime = SYSDATETIME() WHERE LogEntryId = @LogEntryId AND ProcName = 'KmsfUkFinDataDumpSp_060_LoadSfVolumeMonthlyTbl'
+
+SELECT @RsltCd = '1'
+
+RETURN 0
+
+END
+
+
+
+
+
+
+
+
+
+

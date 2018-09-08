@@ -1,0 +1,53 @@
+USE [KmsfOBExtracts]
+GO
+/****** Object:  StoredProcedure [kmsf].[KmsfUkFinDataDumpSp_030_LoadHlthProfMstrTbl]    Script Date: 7/27/2017 8:31:23 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+
+
+ALTER PROCEDURE [kmsf].[KmsfUkFinDataDumpSp_030_LoadHlthProfMstrTbl]
+  (
+     @LogEntryId BIGINT = NULL
+    ,@RsltCd TINYINT OUTPUT
+    ,@RsltTxt VARCHAR(254) OUTPUT
+  )
+
+AS
+
+BEGIN
+
+INSERT INTO kmsf.KmsfUkFinDataDumpProcLogDtl (LogEntryId,StartDtime,ProcName,ValueVariable)
+VALUES (@LogEntryId,SYSDATETIME(),'KmsfUkFinDataDumpSp_030_LoadHlthProfMstrTbl','')
+
+SET NOCOUNT ON
+
+IF OBJECT_ID('Staging.UKFinHlthProfMstr','U') is not null
+	DROP TABLE Staging.UKFinHlthProfMstr
+SELECT HlthProfObjId = hp.HlthProfObjId
+  ,HlthProfNPI = hp.HlthProfNPI
+  ,DegreeText = hp.DegreeText
+  ,FirstName = hp.GivenName
+  ,MiddleName = hp.MiddleName
+  ,LastName = hp.FamName
+INTO Staging.UKFinHlthProfMstr
+FROM KMSFDSSDBP01.SMSPHDSSF240.smsdss.HlthProfMstrV hp
+WHERE hp.TypeMne NOT IN ('OrdRef','SpecProv','NonProvMD','Res','Res5Yr')
+
+UPDATE kmsf.KmsfUkFinDataDumpProcLogDtl SET EndDtime = SYSDATETIME() WHERE LogEntryId = @LogEntryId AND ProcName = 'KmsfUkFinDataDumpSp_030_LoadHlthProfMstrTbl'
+
+SELECT @RsltCd = '1'
+
+RETURN 0
+
+END
+
+
+
+
+
+
+
